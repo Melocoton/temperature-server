@@ -19,6 +19,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "mqtt": "^5.3.5"
+    "mqtt": "^5.3.5",
+    "sqlite3": "^5.1.7"
   }
 }
