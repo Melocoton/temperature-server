@@ -31,7 +31,7 @@ function createTables() {
     console.log('Creating tables');
     db.run(`
         CREATE TABLE "temperature" (
-        "time" TEXT NOT NULL,
+        "time" INTEGER NOT NULL,
         "id" TEXT NOT NULL,
         "temperature" REAL,
         "humidity" REAL,
@@ -58,7 +58,7 @@ mqttClient.on('message', (topic, payload) => {
     const data = parsePayload(payload.toString());
     console.log('Inserting Data', data);
     db.run("INSERT INTO temperature (time, id, temperature, humidity) values ($time, $id, $temperature, $humidity)", {
-        $time: new Date().toISOString(),
+        $time: Date.now(),
         $id: data.id,
         $temperature: data.temperature,
         $humidity: data.humidity
@@ -68,7 +68,7 @@ mqttClient.on('message', (topic, payload) => {
 function parsePayload(payload: string): SensorData {
     const data = payload.split(';');
     return {
-        id: data[0],
+        id: data[0].replaceAll(':',''),
         temperature: Number(data[1].split(':')[1]),
         humidity: Number(data[2].split(':')[1])
     };
