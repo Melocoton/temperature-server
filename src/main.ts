@@ -2,7 +2,10 @@ import mqtt from "mqtt";
 import sqlite3 from "sqlite3";
 
 type SqliteErr = { errno: number, code: string };
-type SensorData = { id: string, temperature: number, humidity: number }
+type SensorData = { id: string, data: Data };
+type Data = { temperature: number, humidity: number };
+
+const deviceData: Map<string, Data[]> = new Map<string, Data[]>();
 
 const mqttClient = mqtt.connect("mqtt://raspberrypi.lan:1883");
 let db = new sqlite3.Database('./data.db', sqlite3.OPEN_READWRITE, (err: unknown) => {
@@ -16,6 +19,20 @@ let db = new sqlite3.Database('./data.db', sqlite3.OPEN_READWRITE, (err: unknown
         process.exit(1);
     }
 });
+
+setInterval(() => {
+    deviceData.forEach((data, key) => {
+        const newData: SensorData = {
+            id: key,
+            data: {
+                temperature: Math.round(data.reduce((a, b) => a + b.temperature, 0) / data.length),
+                humidity: Math.round(data.reduce((a, b) => a + b.humidity, 0) / data.length)
+            }
+        };
+        insertData(newData);
+    });
+    deviceData.clear();
+}, 60000);
 
 function createDB() {
     db = new sqlite3.Database('data.db', err => {
@@ -56,20 +73,30 @@ mqttClient.on('connect', () => {
 mqttClient.on('message', (topic, payload) => {
     console.log('Message received:', `Topic:${topic}, Payload:${payload}`);
     const data = parsePayload(payload.toString());
+    if (deviceData.has(data.id)) {
+        deviceData.get(data.id).push(data.data);
+    } else {
+        deviceData.set(data.id, [data.data]);
+    }
+});
+
+function insertData(data: SensorData) {
     console.log('Inserting Data', data);
     db.run("INSERT INTO temperature (time, id, temperature, humidity) values ($time, $id, $temperature, $humidity)", {
         $time: Date.now(),
         $id: data.id,
-        $temperature: data.temperature,
-        $humidity: data.humidity
+        $temperature: data.data.temperature,
+        $humidity: data.data.humidity
     });
-});
+}
 
 function parsePayload(payload: string): SensorData {
     const data = payload.split(';');
     return {
         id: data[0].replaceAll(':',''),
-        temperature: Number(data[1].split(':')[1]),
-        humidity: Number(data[2].split(':')[1])
+        data: {
+            temperature: Number(data[1].split(':')[1]),
+            humidity: Number(data[2].split(':')[1])
+        }
     };
 }
