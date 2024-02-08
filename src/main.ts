@@ -2,10 +2,10 @@ import mqtt from "mqtt";
 import sqlite3 from "sqlite3";
 
 type SqliteErr = { errno: number, code: string };
-type SensorData = { id: string, data: Data };
+type SensorData = { id: number, data: Data };
 type Data = { temperature: number, humidity: number };
 
-const deviceData: Map<string, Data[]> = new Map<string, Data[]>();
+const deviceData: Map<number, Data[]> = new Map<number, Data[]>();
 
 const mqttClient = mqtt.connect("mqtt://raspberrypi.lan:1883");
 let db = new sqlite3.Database('./data.db', sqlite3.OPEN_READWRITE, (err: unknown) => {
@@ -49,9 +49,9 @@ function createTables() {
     db.run(`
         CREATE TABLE "temperature" (
         "time" INTEGER NOT NULL,
-        "id" TEXT NOT NULL,
-        "temperature" REAL,
-        "humidity" REAL,
+        "id" INTEGER NOT NULL,
+        "temperature" INTEGER,
+        "humidity" INTEGER,
         PRIMARY KEY("time","id")
         ); 
     `, err => {
@@ -71,7 +71,7 @@ mqttClient.on('connect', () => {
 });
 
 mqttClient.on('message', (topic, payload) => {
-    console.log('Message received:', `Topic:${topic}, Payload:${payload}`);
+    // console.log('Message received:', `Topic:${topic}, Payload:${payload}`);
     const data = parsePayload(payload.toString());
     if (deviceData.has(data.id)) {
         deviceData.get(data.id).push(data.data);
@@ -93,7 +93,7 @@ function insertData(data: SensorData) {
 function parsePayload(payload: string): SensorData {
     const data = payload.split(';');
     return {
-        id: data[0].replaceAll(':',''),
+        id: Number('0x'+data[0].replaceAll(':','')),
         data: {
             temperature: Number(data[1].split(':')[1]),
             humidity: Number(data[2].split(':')[1])
