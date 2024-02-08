@@ -20,20 +20,6 @@ let db = new sqlite3.Database('./data.db', sqlite3.OPEN_READWRITE, (err: unknown
     }
 });
 
-setInterval(() => {
-    deviceData.forEach((data, key) => {
-        const newData: SensorData = {
-            id: key,
-            data: {
-                temperature: Math.round(data.reduce((a, b) => a + b.temperature, 0) / data.length),
-                humidity: Math.round(data.reduce((a, b) => a + b.humidity, 0) / data.length)
-            }
-        };
-        insertData(newData);
-    });
-    deviceData.clear();
-}, 60000);
-
 function createDB() {
     db = new sqlite3.Database('data.db', err => {
         if (err) {
@@ -63,6 +49,34 @@ function createTables() {
     });
 }
 
+setInterval(() => {
+    const flatDeviceData: unknown[] = [];
+    deviceData.forEach((data, key) => {
+        flatDeviceData.push(
+            Date.now(),
+            key,
+            Math.round(data.reduce((a, b) => a + b.temperature, 0) / data.length),
+            Math.round(data.reduce((a, b) => a + b.humidity, 0) / data.length)
+        );
+    });
+    insertData(flatDeviceData);
+    deviceData.clear();
+}, 60000);
+
+function insertData(flatDeviceData: unknown[]) {
+    const placeHolders = Array(flatDeviceData.length/4).fill('(?, ?, ?, ?)').join(', ');
+    const query = `INSERT INTO temperature (time, id, temperature, humidity) values ${placeHolders}`;
+    db.serialize(() => {
+        db.run(query, flatDeviceData, err => {
+            if (err) {
+                console.error('Error inserting', err);
+            } else {
+                console.log('Data inserted:', JSON.stringify(flatDeviceData));
+            }
+        })
+    });
+}
+
 mqttClient.on('connect', () => {
     console.log('Connected');
     mqttClient.subscribe(['casa/temperature'], () => {
@@ -79,16 +93,6 @@ mqttClient.on('message', (topic, payload) => {
         deviceData.set(data.id, [data.data]);
     }
 });
-
-function insertData(data: SensorData) {
-    console.log('Inserting Data', data);
-    db.run("INSERT INTO temperature (time, id, temperature, humidity) values ($time, $id, $temperature, $humidity)", {
-        $time: Date.now(),
-        $id: data.id,
-        $temperature: data.data.temperature,
-        $humidity: data.data.humidity
-    });
-}
 
 function parsePayload(payload: string): SensorData {
     const data = payload.split(';');
