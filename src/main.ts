@@ -48,7 +48,7 @@ function createTables() {
             }
             console.log('Temperature table created');
         }).run(`
-            CREATE TABLE "devices" (
+            CREATE TABLE "device" (
                 "id" INTEGER NOT NULL,
                 "description" TEXT,
                 PRIMARY KEY("id")
