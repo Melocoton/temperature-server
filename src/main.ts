@@ -32,21 +32,36 @@ function createDB() {
 
 function createTables() {
     console.log('Creating tables');
-    db.run(`
-        CREATE TABLE "temperature" (
-        "time" INTEGER NOT NULL,
-        "id" INTEGER NOT NULL,
-        "temperature" INTEGER,
-        "humidity" INTEGER,
-        PRIMARY KEY("time","id")
-        ); 
-    `, err => {
-        if (err) {
-            console.error('Error creating tables', err);
-            process.exit(1);
-        }
-        console.log('DB Created');
-    });
+    db.serialize(() => {
+        db.run(`
+            CREATE TABLE "temperature" (
+                "time" INTEGER NOT NULL,
+                "id" INTEGER NOT NULL,
+                "temperature" INTEGER,
+                "humidity" INTEGER,
+                PRIMARY KEY("time","id")
+            ); 
+        `, err => {
+            if (err) {
+                console.error('Error creating tables', err);
+                process.exit(1);
+            }
+            console.log('Temperature table created');
+        }).run(`
+            CREATE TABLE "devices" (
+                "id" INTEGER NOT NULL,
+                "description" TEXT,
+                PRIMARY KEY("id")
+            ); 
+        `, err => {
+            if (err) {
+                console.error('Error creating tables', err);
+                process.exit(1);
+            }
+            console.log('Devices table created');
+        });
+    })
+
 }
 
 setInterval(() => {
