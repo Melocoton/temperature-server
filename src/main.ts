@@ -102,7 +102,7 @@ mqttClient.on('connect', () => {
 mqttClient.on('message', (topic, payload) => {
     // console.log('Message received:', `Topic:${topic}, Payload:${payload}`);
     const data = parsePayload(payload.toString());
-    if (!Number.isNaN(data.data.temperature) && !Number.isNaN(data.data.humidity)) {
+    if (!Number.isNaN(data.id) && !Number.isNaN(data.data.temperature) && !Number.isNaN(data.data.humidity)) {
         if (deviceData.has(data.id)) {
             deviceData.get(data.id).push(data.data);
         } else {
